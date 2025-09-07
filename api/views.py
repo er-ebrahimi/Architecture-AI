@@ -10,12 +10,55 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.db.models import Q
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from .models import Product
 from .ai_service import ai_service
 from .schemas import ImageFeatures
 
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Add a Product",
+    operation_description="Receive a product image and source URL, analyze using AI, and save to database.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'source_url': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='Original URL of the product',
+                example='https://example.com/product'
+            ),
+            'image': openapi.Schema(
+                type=openapi.TYPE_FILE,
+                description='Product image file (JPEG, PNG, etc.)'
+            )
+        },
+        required=['source_url', 'image']
+    ),
+    responses={
+        201: openapi.Response(
+            description="Product successfully analyzed and saved",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'success': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                    'product_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'image_filename': openapi.Schema(type=openapi.TYPE_STRING),
+                    'features': openapi.Schema(type=openapi.TYPE_OBJECT),
+                    'message': openapi.Schema(type=openapi.TYPE_STRING)
+                }
+            )
+        ),
+        400: openapi.Response(description="Bad request - missing required fields"),
+        500: openapi.Response(description="Internal server error")
+    },
+    tags=['Products']
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
 @csrf_exempt
-@require_http_methods(["POST"])
 def add_product(request):
     """
     API Endpoint 1: Add a Product
@@ -97,8 +140,57 @@ def add_product(request):
         }, status=500)
 
 
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Find Similar Products",
+    operation_description="Receive a query image, analyze it, and find most similar products in database.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'image': openapi.Schema(
+                type=openapi.TYPE_FILE,
+                description='Query image file (JPEG, PNG, etc.)'
+            )
+        },
+        required=['image']
+    ),
+    responses={
+        200: openapi.Response(
+            description="Similar products found successfully",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'success': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                    'query_features': openapi.Schema(type=openapi.TYPE_OBJECT),
+                    'query_tags': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)),
+                    'total_products_checked': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'similar_products': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'source_url': openapi.Schema(type=openapi.TYPE_STRING),
+                                'image_filename': openapi.Schema(type=openapi.TYPE_STRING),
+                                'image_url': openapi.Schema(type=openapi.TYPE_STRING),
+                                'similarity_score': openapi.Schema(type=openapi.TYPE_INTEGER),
+                                'features': openapi.Schema(type=openapi.TYPE_OBJECT),
+                                'created_at': openapi.Schema(type=openapi.TYPE_STRING)
+                            }
+                        )
+                    ),
+                    'message': openapi.Schema(type=openapi.TYPE_STRING)
+                }
+            )
+        ),
+        400: openapi.Response(description="Bad request - image file required"),
+        500: openapi.Response(description="Internal server error")
+    },
+    tags=['Products']
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
 @csrf_exempt
-@require_http_methods(["POST"])
 def find_similar_products(request):
     """
     API Endpoint 2: Find Similar Products
@@ -201,6 +293,30 @@ def find_similar_products(request):
         }, status=500)
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_summary="Health Check",
+    operation_description="Simple health check endpoint to verify API is running.",
+    responses={
+        200: openapi.Response(
+            description="API is healthy",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'status': openapi.Schema(type=openapi.TYPE_STRING, example='healthy'),
+                    'service': openapi.Schema(type=openapi.TYPE_STRING, example='AI Visual Product Search API'),
+                    'endpoints': openapi.Schema(
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(type=openapi.TYPE_STRING)
+                    )
+                }
+            )
+        )
+    },
+    tags=['System']
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def health_check(request):
     """Simple health check endpoint to verify API is running."""
     return JsonResponse({
