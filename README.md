@@ -125,6 +125,32 @@ The API will be available at:
 - **API Base URL**: `http://localhost:8000/api/`
 - **Admin Panel**: `http://localhost:8000/admin/`
 - **Health Check**: `http://localhost:8000/api/health/`
+- **Swagger UI**: `http://localhost:8000/swagger/` - Interactive API documentation
+- **ReDoc**: `http://localhost:8000/redoc/` - Alternative API documentation
+- **OpenAPI Schema**: `http://localhost:8000/swagger.json` - Machine-readable API specification
+
+## 📖 API Documentation
+
+### Interactive Documentation
+
+The API includes comprehensive interactive documentation powered by Swagger/OpenAPI:
+
+- **Swagger UI**: Visit `http://localhost:8000/swagger/` for an interactive interface where you can:
+  - Explore all available endpoints
+  - View detailed request/response schemas
+  - Test API calls directly from the browser
+  - Download the OpenAPI specification
+
+- **ReDoc**: Visit `http://localhost:8000/redoc/` for an alternative documentation interface with:
+  - Clean, readable documentation
+  - Detailed schema information
+  - Better mobile experience
+
+### API Schema
+
+The API follows OpenAPI 3.0 specification and can be accessed at:
+- **JSON Schema**: `http://localhost:8000/swagger.json`
+- **YAML Schema**: `http://localhost:8000/swagger.yaml`
 
 ## 📖 API Usage
 
