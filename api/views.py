@@ -21,7 +21,7 @@ from .schemas import ImageFeatures
 @swagger_auto_schema(
     method='post',
     operation_summary="Add a Product",
-    operation_description="Receive a product image and source URL, analyze using AI, and save to database.",
+    operation_description="Receive a product image and source URL, analyze using AI, and save to database. Use multipart/form-data content type for file uploads.",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
@@ -143,7 +143,7 @@ def add_product(request):
 @swagger_auto_schema(
     method='post',
     operation_summary="Find Similar Products",
-    operation_description="Receive a query image, analyze it, and find most similar products in database.",
+    operation_description="Receive a query image, analyze it, and find most similar products in database. Use multipart/form-data content type for file uploads.",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
