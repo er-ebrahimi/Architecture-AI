@@ -2,26 +2,27 @@
 import base64
 import json
 import os
+import httpx
 from typing import Optional
-import openai
 from django.conf import settings
 from .schemas import ImageFeatures
 
 class AIImageAnalysisService:
     """
-    Service class for analyzing images using OpenAI's GPT-4 Vision API.
+    Service class for analyzing images using OpenRouter's Sonoma Dusk Alpha model.
     Follows the Single Responsibility Principle by handling only AI-related operations.
     """
 
     def __init__(self):
-        """Initialize the OpenAI client with API key from environment variables."""
-        api_key = os.getenv('OPENAI_API_KEY')
-        if not api_key or api_key == 'your_openai_api_key_here':
-            self.client = None
+        """Initialize the OpenRouter client with API key from environment variables."""
+        api_key = os.getenv('OPENROUTER_API_KEY', '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')
+        if not api_key or api_key == 'your_openrouter_api_key_here':
+            self.api_key = None
             self.api_key_available = False
         else:
-            self.client = openai.OpenAI(api_key=api_key)
+            self.api_key = api_key
             self.api_key_available = True
+            self.base_url = "https://openrouter.ai/api/v1"
 
     def _encode_image_to_base64(self, image_bytes: bytes) -> str:
         """
@@ -70,7 +71,7 @@ class AIImageAnalysisService:
 
     async def get_image_features(self, image_bytes: bytes) -> ImageFeatures:
         """
-        Analyze an image using OpenAI's GPT-4 Vision API and return structured features.
+        Analyze an image using OpenRouter's Sonoma Dusk Alpha model and return structured features.
         
         Args:
             image_bytes: Raw bytes of the image file
@@ -99,10 +100,18 @@ class AIImageAnalysisService:
             # Construct the analysis prompt
             prompt = self._construct_analysis_prompt()
             
-            # Make API call to OpenAI GPT-4 Vision
-            response = self.client.chat.completions.create(
-                model="gpt-4-vision-preview",
-                messages=[
+            # Prepare headers for OpenRouter API
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://architectai.local",  # Optional: for tracking
+                "X-Title": "ArchitectAI Visual Search"  # Optional: for tracking
+            }
+            
+            # Prepare the request payload for OpenRouter
+            payload = {
+                "model": "openrouter/sonoma-dusk-alpha",
+                "messages": [
                     {
                         "role": "user",
                         "content": [
@@ -120,12 +129,23 @@ class AIImageAnalysisService:
                         ]
                     }
                 ],
-                max_tokens=1000,
-                temperature=0.1,  # Low temperature for consistent results
-            )
+                "max_tokens": 1000,
+                "temperature": 0.1,  # Low temperature for consistent results
+            }
+            
+            # Make API call to OpenRouter
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=30.0
+                )
+                response.raise_for_status()
+                response_data = response.json()
             
             # Extract the JSON response
-            ai_response = response.choices[0].message.content.strip()
+            ai_response = response_data["choices"][0]["message"]["content"].strip()
             
             # Parse and validate the JSON response using Pydantic
             try:
@@ -147,9 +167,13 @@ class AIImageAnalysisService:
             except Exception as e:
                 raise ValueError(f"AI response does not match expected schema: {e}. Response: {ai_response}")
                 
+        except httpx.HTTPStatusError as e:
+            raise Exception(f"OpenRouter API HTTP error: {e.response.status_code} - {e.response.text}")
+        except httpx.RequestError as e:
+            raise Exception(f"OpenRouter API request error: {e}")
         except Exception as e:
-            if "API" in str(e) or "openai" in str(e).lower():
-                raise Exception(f"OpenAI API error: {e}")
+            if "API" in str(e) or "openrouter" in str(e).lower():
+                raise Exception(f"OpenRouter API error: {e}")
             else:
                 raise Exception(f"Image analysis error: {e}")
 

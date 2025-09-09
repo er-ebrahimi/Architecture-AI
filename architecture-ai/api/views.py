@@ -95,9 +95,9 @@ def add_product(request):
         file_extension = image_file.name.split('.')[-1] if '.' in image_file.name else 'jpg'
         unique_filename = f"{uuid.uuid4()}.{file_extension}"
         
-        # Save image file to static directory
+        # Save image file to media directory
         file_path = default_storage.save(
-            f"product_images/{unique_filename}",
+            unique_filename,
             ContentFile(image_bytes)
         )
         
@@ -131,7 +131,7 @@ def add_product(request):
         # Clean up uploaded file if database save fails
         if 'unique_filename' in locals():
             try:
-                default_storage.delete(f"product_images/{unique_filename}")
+                default_storage.delete(unique_filename)
             except:
                 pass
         

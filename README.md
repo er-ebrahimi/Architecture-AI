@@ -1,367 +1,234 @@
-# ArchitectAI - AI-Powered Visual Product Search API
+# AI Visual Product Search - React Frontend (Vite)
 
-A Django-based REST API that uses AI to analyze product images and find similar products through visual similarity matching. Built with Django, PostgreSQL, and OpenAI's vision capabilities.
+A modern and fast React application built with Vite that connects to the Django backend to perform AI-powered visual product searches.
+
+## ⚡ Why Vite?
+
+This frontend uses **Vite** instead of Create React App for:
+
+- **Lightning Fast**: Instant dev server startup and HMR
+- **Modern Tooling**: Native ES modules and optimized builds
+- **Better DX**: Superior developer experience with TypeScript support
+- **Smaller Bundle**: More efficient production builds
 
 ## 🚀 Features
 
-- **AI-Powered Image Analysis**: Uses OpenAI's vision models to extract detailed features from product images
-- **Visual Similarity Search**: Find similar products based on visual characteristics and style
-- **RESTful API**: Clean, well-documented API endpoints
-- **PostgreSQL Database**: Robust data storage with optimized queries
-- **File Management**: Secure image upload and storage
-- **Environment Configuration**: Easy setup with environment variables
+- 🖼️ **Image Upload**: Beautiful drag & drop interface with preview
+- 🔍 **AI Search**: Find similar products using computer vision
+- 🎨 **Modern UI**: Built with shadcn/ui and Tailwind CSS
+- 📱 **Responsive**: Works perfectly on all devices
+- ⚡ **Super Fast**: Vite's instant HMR for development
+- 🔄 **Smart Caching**: React Query for optimal data management
 
-## 🏗️ Architecture
+## 🛠️ Getting Started
 
-### Core Components
+### Prerequisites
 
-1. **Django Backend**: REST API framework
-2. **PostgreSQL Database**: Primary data storage
-3. **OpenAI Integration**: AI-powered image analysis
-4. **File Storage**: Product image management
-5. **Pydantic Models**: Type-safe data validation
+- Node.js 18+ installed
+- The Django backend running on `http://localhost:9000`
 
-### API Endpoints
+### Installation
 
-- `POST /api/products/` - Add a new product with image analysis
-- `POST /api/products/find-similar/` - Find similar products by image
-- `GET /api/health/` - Health check endpoint
-- `GET /admin/` - Django admin interface
-
-## 📋 Prerequisites
-
-- Python 3.12+
-- PostgreSQL 17+
-- OpenAI API Key
-- Git
-
-## 🛠️ Installation
-
-### 1. Clone the Repository
+1. Navigate to the react-frontend directory:
 
 ```bash
-git clone <your-repo-url>
-cd ArchitecuterAI
+cd react-frontend
 ```
 
-### 2. Create Virtual Environment
+2. Install dependencies:
 
 ```bash
-python -m venv venv
+npm install
+```
 
+3. Start the development server:
+
+```bash
+npm run dev
+```
+
+4. Open [http://localhost:5173](http://localhost:5173) to view it in the browser.
+
+## 📦 Scripts
+
+- `npm run dev` - Start development server with HMR
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build locally
+- `npm run lint` - Run ESLint
+
+## 🎯 Usage
+
+1. **Upload an Image**: Click the upload area or drag an image file
+2. **Search**: Click "Find Similar Products" to search for similar items
+3. **Browse Results**: View beautiful product cards with similarity scores
+4. **Explore Details**: See object types, attributes, and overall styles
+5. **Visit Source**: Click "View Original" to see the source product
+
+## 🔌 API Integration
+
+The app connects to the Django backend API at:
+
+- **Endpoint**: `POST /api/products/find-similar/`
+- **Base URL**: `http://localhost:9000`
+- **Expected Response**: JSON with similar products and AI analysis
+
+## 🏗️ Tech Stack
+
+- **Vite 5** - Next generation frontend tooling
+- **React 18** - Latest React with concurrent features
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first CSS framework
+- **shadcn/ui** - Beautiful and accessible UI components
+- **React Query (TanStack Query)** - Powerful data synchronization
+- **Axios** - Promise-based HTTP client
+- **Lucide React** - Beautiful and consistent icons
+
+## 📁 Project Structure
+
+```
+src/
+├── components/
+│   ├── ui/                    # shadcn/ui components
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   └── input.tsx
+│   ├── ImageUpload.tsx        # Drag & drop image upload
+│   ├── ProductCard.tsx        # Product display card
+│   └── ProductSearch.tsx      # Main search interface
+├── hooks/
+│   └── useProductSearch.ts    # React Query hook
+├── services/
+│   └── api.ts                # API service and types
+├── lib/
+│   └── utils.ts              # Utility functions
+├── App.tsx                   # Main app component
+├── main.tsx                  # Vite entry point
+└── index.css                 # Global styles with Tailwind
+```
+
+## 🎨 Design System
+
+The app uses a consistent design system with:
+
+- **CSS Variables**: Easy theming and customization
+- **Tailwind Utilities**: Rapid UI development
+- **shadcn/ui Components**: Pre-built, accessible components
+- **Responsive Grid**: Adaptive layout for all screen sizes
+- **Smooth Animations**: Hover effects and transitions
+
+## 🔧 Configuration
+
+### Vite Config
+
+The app is configured with:
+
+- TypeScript support
+- React plugin with Fast Refresh
+- Tailwind CSS integration
+- Optimized build settings
+
+### Tailwind Config
+
+Custom design tokens for:
+
+- Color palette (primary, secondary, accent, etc.)
+- Border radius variables
+- Typography scale
+- Spacing system
+
+## 🌐 Environment Setup
+
+Make sure your Django backend is running:
+
+1. Navigate to the architecture-ai directory:
+
+```bash
+cd ../architecture-ai
+```
+
+2. Activate virtual environment:
+
+```bash
 # Windows
-.\venv\Scripts\activate
-
+venv\Scripts\activate
 # macOS/Linux
 source venv/bin/activate
 ```
 
-### 3. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Database Setup
-
-#### Install PostgreSQL
-
-- Download and install PostgreSQL 17+ from [postgresql.org](https://www.postgresql.org/download/)
-- Create a database named `architectai_db`
-- Set up a user with appropriate permissions
-
-#### Configure Database
-
-```bash
-# Create database
-createdb architectai_db
-
-# Or using psql
-psql -U postgres -c "CREATE DATABASE architectai_db;"
-```
-
-### 5. Environment Configuration
-
-Create a `.env` file in the project root:
-
-```env
-# Database Configuration
-DB_NAME=architectai_db
-DB_USER=postgres
-DB_PASSWORD=your_password_here
-DB_HOST=localhost
-DB_PORT=5432
-
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key_here
-
-# Django Configuration
-SECRET_KEY=your_secret_key_here
-DEBUG=True
-```
-
-### 6. Run Migrations
-
-```bash
-python manage.py migrate
-```
-
-### 7. Create Superuser (Optional)
-
-```bash
-python manage.py createsuperuser
-```
-
-## 🚀 Running the Application
-
-### Start Development Server
+3. Start Django server:
 
 ```bash
 python manage.py runserver
 ```
 
-The API will be available at:
+The React app expects the backend at `http://localhost:9000`.
 
-- **API Base URL**: `http://localhost:8000/api/`
-- **Admin Panel**: `http://localhost:8000/admin/`
-- **Health Check**: `http://localhost:8000/api/health/`
-- **Swagger UI**: `http://localhost:8000/swagger/` - Interactive API documentation
-- **ReDoc**: `http://localhost:8000/redoc/` - Alternative API documentation
-- **OpenAPI Schema**: `http://localhost:8000/swagger.json` - Machine-readable API specification
-
-## 📖 API Documentation
-
-### Interactive Documentation
-
-The API includes comprehensive interactive documentation powered by Swagger/OpenAPI:
-
-- **Swagger UI**: Visit `http://localhost:8000/swagger/` for an interactive interface where you can:
-  - Explore all available endpoints
-  - View detailed request/response schemas
-  - Test API calls directly from the browser
-  - Download the OpenAPI specification
-
-- **ReDoc**: Visit `http://localhost:8000/redoc/` for an alternative documentation interface with:
-  - Clean, readable documentation
-  - Detailed schema information
-  - Better mobile experience
-
-### API Schema
-
-The API follows OpenAPI 3.0 specification and can be accessed at:
-- **JSON Schema**: `http://localhost:8000/swagger.json`
-- **YAML Schema**: `http://localhost:8000/swagger.yaml`
-
-## 📖 API Usage
-
-### 1. Add a Product
+## 🚀 Production Build
 
 ```bash
-curl -X POST http://localhost:8000/api/products/ \
-  -F "source_url=https://example.com/product" \
-  -F "image=@/path/to/image.jpg"
+npm run build
 ```
 
-**Response:**
+This creates an optimized build in the `dist/` folder with:
 
-```json
-{
-  "success": true,
-  "product_id": 1,
-  "image_filename": "uuid.jpg",
-  "features": {
-    "main_objects": [...],
-    "overall_style": [...],
-    "color_palette": [...]
-  },
-  "message": "Product successfully analyzed and saved"
-}
-```
+- Minified JavaScript and CSS
+- Optimized assets
+- Code splitting for better performance
+- Modern browser targeting
 
-### 2. Find Similar Products
+## 🔍 Development
 
-```bash
-curl -X POST http://localhost:8000/api/products/find-similar/ \
-  -F "image=@/path/to/query_image.jpg"
-```
+### Hot Module Replacement
 
-**Response:**
+Vite provides instant HMR - changes reflect immediately without losing state.
 
-```json
-{
-  "success": true,
-  "query_features": {...},
-  "query_tags": ["modern", "minimalist", "wood"],
-  "total_products_checked": 50,
-  "similar_products": [
-    {
-      "id": 1,
-      "source_url": "https://example.com/product",
-      "image_filename": "uuid.jpg",
-      "image_url": "/media/uuid.jpg",
-      "similarity_score": 8,
-      "features": {...},
-      "created_at": "2024-01-01T12:00:00Z"
-    }
-  ],
-  "message": "Found 5 similar products"
-}
-```
+### Type Checking
 
-### 3. Health Check
+TypeScript provides compile-time type checking for better developer experience.
 
-```bash
-curl http://localhost:8000/api/health/
-```
+### Linting
 
-## 🗄️ Database Schema
+ESLint ensures code quality and consistency.
 
-### Products Table
+## 🤝 Backend Communication
 
-| Field          | Type          | Description           |
-| -------------- | ------------- | --------------------- |
-| id             | BigAutoField  | Primary key           |
-| source_url     | URLField      | Original product URL  |
-| image_filename | CharField     | Unique image filename |
-| features       | JSONField     | AI-generated features |
-| created_at     | DateTimeField | Creation timestamp    |
-| updated_at     | DateTimeField | Last update timestamp |
+The frontend communicates with the Django backend using:
 
-### Features JSON Structure
+- **FormData**: For file uploads
+- **Multipart requests**: Proper image handling
+- **Error handling**: User-friendly error messages
+- **Loading states**: Visual feedback during API calls
 
-```json
-{
-  "main_objects": [
-    {
-      "object_type": "chair",
-      "attributes": ["wooden", "modern", "minimalist"]
-    }
-  ],
-  "overall_style": ["scandinavian", "contemporary"],
-  "color_palette": ["#ffffff", "#8B4513", "#000000"],
-  "materials": ["wood", "metal"],
-  "textures": ["smooth", "matte"]
-}
-```
+## 📱 Responsive Design
 
-## 🔧 Development
+The app works perfectly on:
 
-### Project Structure
+- 📱 Mobile phones (320px+)
+- 📱 Tablets (768px+)
+- 💻 Laptops (1024px+)
+- 🖥️ Desktops (1280px+)
 
-```
-ArchitecuterAI/
-├── api/                    # Main API app
-│   ├── models.py          # Database models
-│   ├── views.py           # API endpoints
-│   ├── urls.py            # URL routing
-│   ├── ai_service.py      # OpenAI integration
-│   └── schemas.py         # Pydantic models
-├── config/                # Django settings
-│   ├── settings.py        # Main settings
-│   ├── urls.py           # Root URL config
-│   └── wsgi.py           # WSGI config
-├── media/                 # Uploaded files
-├── static/                # Static files
-├── .env                   # Environment variables
-├── .env.example          # Environment template
-├── requirements.txt      # Python dependencies
-├── manage.py             # Django management
-└── README.md             # This file
-```
+## 🎯 Performance
 
-### Adding New Features
+- **Fast Initial Load**: Vite's optimized bundling
+- **Efficient Updates**: React Query caching
+- **Image Optimization**: Proper sizing and lazy loading
+- **Code Splitting**: Reduced bundle sizes
 
-1. **Models**: Add new models in `api/models.py`
-2. **Views**: Create new API endpoints in `api/views.py`
-3. **URLs**: Register new routes in `api/urls.py`
-4. **Migrations**: Run `python manage.py makemigrations` and `python manage.py migrate`
+## 🛠️ Troubleshooting
 
-### Code Quality
+### Common Issues
 
-- Follow PEP 8 style guidelines
-- Use type hints where appropriate
-- Write docstrings for functions and classes
-- Follow Django best practices
+1. **Port 5173 in use**: Vite will automatically use the next available port
+2. **Backend not running**: Ensure Django server is on port 9000
+3. **CORS issues**: Django backend includes CORS headers
+4. **Build errors**: Check TypeScript types and imports
 
-## 🧪 Testing
+### Development Tips
 
-```bash
-# Run all tests
-python manage.py test
+- Use the browser's developer tools for debugging
+- React Query DevTools available in development
+- Tailwind CSS IntelliSense for better DX
+- Hot reload preserves component state
 
-# Run specific app tests
-python manage.py test api
-
-# Run with coverage
-coverage run --source='.' manage.py test
-coverage report
-```
-
-## 🚀 Deployment
-
-### Production Settings
-
-1. Set `DEBUG=False` in environment
-2. Configure production database
-3. Set up static file serving
-4. Configure media file storage
-5. Set up proper logging
-6. Use environment variables for secrets
-
-### Docker Deployment (Optional)
-
-```dockerfile
-FROM python:3.12-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-```
-
-## 📝 Environment Variables
-
-| Variable         | Description              | Default          |
-| ---------------- | ------------------------ | ---------------- |
-| `DB_NAME`        | PostgreSQL database name | `architectai_db` |
-| `DB_USER`        | Database username        | `postgres`       |
-| `DB_PASSWORD`    | Database password        | -                |
-| `DB_HOST`        | Database host            | `localhost`      |
-| `DB_PORT`        | Database port            | `5432`           |
-| `OPENAI_API_KEY` | OpenAI API key           | -                |
-| `SECRET_KEY`     | Django secret key        | -                |
-| `DEBUG`          | Debug mode               | `True`           |
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-If you encounter any issues or have questions:
-
-1. Check the [Issues](https://github.com/your-repo/issues) page
-2. Create a new issue with detailed information
-3. Contact the development team
-
-## 🔄 Changelog
-
-### Version 1.0.0
-
-- Initial release
-- AI-powered image analysis
-- Visual similarity search
-- PostgreSQL integration
-- RESTful API endpoints
-
----
-
-**Built with ❤️ using Django, PostgreSQL, and OpenAI**
+This Vite-powered frontend provides a modern, fast, and developer-friendly experience while maintaining all the functionality of the original application! 🚀

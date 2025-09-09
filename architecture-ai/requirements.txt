@@ -5,6 +5,7 @@ psycopg2==2.9.10
 # AI and Data Processing
 openai==1.106.1
 pydantic==2.11.7
+httpx==0.28.1
 
 # Environment Management
 python-dotenv==1.1.1
@@ -15,4 +16,5 @@ Pillow==10.4.0
 # API Documentation
 drf-yasg==1.21.10
 djangorestframework==3.16.1
+django-cors-headers==4.4.0
 
