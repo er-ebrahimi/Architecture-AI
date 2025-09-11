@@ -2,7 +2,10 @@
 import json
 import uuid
 import asyncio
+import httpx
+import os
 from typing import List, Dict, Any
+from urllib.parse import urlparse
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -18,24 +21,104 @@ from .models import Product
 from .ai_service import ai_service
 from .schemas import ImageFeatures
 
+
+async def download_image_from_url(image_url: str) -> tuple[bytes, str]:
+    """
+    Download image from URL and return image bytes and file extension.
+    
+    Args:
+        image_url (str): URL of the image to download
+        
+    Returns:
+        tuple[bytes, str]: Image bytes and file extension
+        
+    Raises:
+        ValueError: If URL is invalid or image cannot be downloaded
+        Exception: If download fails
+    """
+    try:
+        # Validate URL
+        parsed_url = urlparse(image_url)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            raise ValueError("Invalid URL format")
+        
+        # Download image with timeout and size limits
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(image_url)
+            response.raise_for_status()
+            
+            # Check content type
+            content_type = response.headers.get('content-type', '').lower()
+            if not content_type.startswith('image/'):
+                raise ValueError(f"URL does not point to an image. Content-Type: {content_type}")
+            
+            # Check content length (limit to 10MB)
+            content_length = response.headers.get('content-length')
+            if content_length and int(content_length) > 10 * 1024 * 1024:
+                raise ValueError("Image file too large (max 10MB)")
+            
+            image_bytes = response.content
+            
+            # Double-check size after download
+            if len(image_bytes) > 10 * 1024 * 1024:
+                raise ValueError("Image file too large (max 10MB)")
+            
+            # Determine file extension from content type
+            content_type_to_ext = {
+                'image/jpeg': 'jpg',
+                'image/jpg': 'jpg', 
+                'image/png': 'png',
+                'image/gif': 'gif',
+                'image/webp': 'webp',
+                'image/bmp': 'bmp'
+            }
+            
+            file_extension = content_type_to_ext.get(content_type, 'jpg')
+            
+            return image_bytes, file_extension
+            
+    except httpx.HTTPStatusError as e:
+        raise ValueError(f"Failed to download image: HTTP {e.response.status_code}")
+    except httpx.RequestError as e:
+        raise ValueError(f"Failed to download image: {str(e)}")
+    except Exception as e:
+        raise Exception(f"Image download error: {str(e)}")
+
 @swagger_auto_schema(
     method='post',
     operation_summary="Add a Product",
-    operation_description="Receive a product image and source URL, analyze using AI, and save to database. Use multipart/form-data content type for file uploads.",
+    operation_description="Receive a product source URL and image file/URL, analyze the image using AI, and save to database.",
+    manual_parameters=[
+        openapi.Parameter(
+            'source_url',
+            openapi.IN_FORM,
+            description='Original URL of the product (for multipart/form-data)',
+            type=openapi.TYPE_STRING,
+            required=False
+        ),
+        openapi.Parameter(
+            'image',
+            openapi.IN_FORM,
+            description='Image file to analyze (multipart/form-data)',
+            type=openapi.TYPE_FILE,
+            required=False
+        )
+    ],
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
             'source_url': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='Original URL of the product',
+                description='Original URL of the product (for JSON request)',
                 example='https://example.com/product'
             ),
-            'image': openapi.Schema(
-                type=openapi.TYPE_FILE,
-                description='Product image file (JPEG, PNG, etc.)'
+            'image_url': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='URL of the product image to download and analyze (alternative to file upload)',
+                example='https://example.com/product-image.jpg'
             )
         },
-        required=['source_url', 'image']
+        required=[]
     ),
     responses={
         201: openapi.Response(
@@ -46,12 +129,13 @@ from .schemas import ImageFeatures
                     'success': openapi.Schema(type=openapi.TYPE_BOOLEAN),
                     'product_id': openapi.Schema(type=openapi.TYPE_INTEGER),
                     'image_filename': openapi.Schema(type=openapi.TYPE_STRING),
+                    'image_url': openapi.Schema(type=openapi.TYPE_STRING),
                     'features': openapi.Schema(type=openapi.TYPE_OBJECT),
                     'message': openapi.Schema(type=openapi.TYPE_STRING)
                 }
             )
         ),
-        400: openapi.Response(description="Bad request - missing required fields"),
+        400: openapi.Response(description="Bad request - missing required fields or invalid image URL"),
         500: openapi.Response(description="Internal server error")
     },
     tags=['Products']
@@ -65,34 +149,44 @@ def add_product(request):
     
     Path: /products/
     Method: POST
-    Purpose: Receive a product image and source URL, analyze using AI, and save to database.
+    Purpose: Receive a product source URL and image URL, download and analyze the image using AI, and save to database.
     
-    Request: multipart/form-data containing:
-    - source_url: str (form field)
-    - image: file upload
+    Request: JSON containing:
+    - source_url: str (product page URL)
+    - image_url: str (image URL to download)
     
     Returns: JSON response with product ID and analysis results
     """
     try:
+        # Parse JSON request body
+        try:
+            request_data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON in request body'}, status=400)
+        
+        print("🚀 ~ request_data:", request_data)
+        
         # Validate input
-        if 'source_url' not in request.POST:
+        if 'source_url' not in request_data:
             return JsonResponse({'error': 'source_url is required'}, status=400)
         
-        if 'image' not in request.FILES:
-            return JsonResponse({'error': 'image file is required'}, status=400)
+        if 'image_url' not in request_data:
+            return JsonResponse({'error': 'image_url is required'}, status=400)
         
-        source_url = request.POST['source_url']
-        image_file = request.FILES['image']
+        source_url = request_data['source_url']
+        image_url = request_data['image_url']
         
-        # Validate image file
-        if not image_file.content_type.startswith('image/'):
-            return JsonResponse({'error': 'File must be an image'}, status=400)
-        
-        # Read image content
-        image_bytes = image_file.read()
+        # Download image from URL (run async function in sync context)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            image_bytes, file_extension = loop.run_until_complete(download_image_from_url(image_url))
+        except (ValueError, Exception) as e:
+            return JsonResponse({'error': f'Failed to download image: {str(e)}'}, status=400)
+        finally:
+            loop.close()
         
         # Generate unique filename
-        file_extension = image_file.name.split('.')[-1] if '.' in image_file.name else 'jpg'
         unique_filename = f"{uuid.uuid4()}.{file_extension}"
         
         # Save image file to media directory
@@ -123,6 +217,8 @@ def add_product(request):
             'success': True,
             'product_id': product.id,
             'image_filename': unique_filename,
+            'image_url': f"{settings.MEDIA_URL}{unique_filename}",
+            'original_image_url': image_url,
             'features': features_dict,
             'message': 'Product successfully analyzed and saved'
         }, status=201)
@@ -143,16 +239,17 @@ def add_product(request):
 @swagger_auto_schema(
     method='post',
     operation_summary="Find Similar Products",
-    operation_description="Receive a query image, analyze it, and find most similar products in database. Use multipart/form-data content type for file uploads.",
+    operation_description="Receive a query image URL, download and analyze it, and find most similar products in database.",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
-            'image': openapi.Schema(
-                type=openapi.TYPE_FILE,
-                description='Query image file (JPEG, PNG, etc.)'
+            'image_url': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='URL of the query image to download and analyze',
+                example='https://example.com/query-image.jpg'
             )
         },
-        required=['image']
+        required=['image_url']
     ),
     responses={
         200: openapi.Response(
@@ -161,6 +258,7 @@ def add_product(request):
                 type=openapi.TYPE_OBJECT,
                 properties={
                     'success': openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                    'query_image_url': openapi.Schema(type=openapi.TYPE_STRING),
                     'query_features': openapi.Schema(type=openapi.TYPE_OBJECT),
                     'query_tags': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING)),
                     'total_products_checked': openapi.Schema(type=openapi.TYPE_INTEGER),
@@ -183,7 +281,7 @@ def add_product(request):
                 }
             )
         ),
-        400: openapi.Response(description="Bad request - image file required"),
+        400: openapi.Response(description="Bad request - invalid image URL"),
         500: openapi.Response(description="Internal server error")
     },
     tags=['Products']
@@ -197,26 +295,63 @@ def find_similar_products(request):
     
     Path: /products/find-similar/
     Method: POST
-    Purpose: Receive a query image, analyze it, and find most similar products in database.
+    Purpose: Receive a query image file, analyze it, and find most similar products in database.
     
     Request: multipart/form-data containing:
-    - image: file upload
+    - image: File (image file to analyze)
+    
+    Alternative: JSON containing:
+    - image_url: str (image URL to download and analyze)
     
     Returns: JSON response with top similar products ranked by similarity score
     """
     try:
-        # Validate input
-        if 'image' not in request.FILES:
-            return JsonResponse({'error': 'image file is required'}, status=400)
+        image_bytes = None
+        query_image_source = None
         
-        image_file = request.FILES['image']
+        # Check if request contains multipart form data (file upload)
+        if request.FILES and 'image' in request.FILES:
+            # Handle direct file upload
+            uploaded_file = request.FILES['image']
+            
+            # Validate file type
+            if not uploaded_file.content_type.startswith('image/'):
+                return JsonResponse({'error': 'Uploaded file must be an image'}, status=400)
+            
+            # Check file size (limit to 10MB)
+            if uploaded_file.size > 10 * 1024 * 1024:
+                return JsonResponse({'error': 'Image file too large (max 10MB)'}, status=400)
+            
+            # Read image bytes
+            image_bytes = uploaded_file.read()
+            query_image_source = f"uploaded_file_{uploaded_file.name}"
+            
+        else:
+            # Try to parse as JSON request body (for image URLs)
+            try:
+                request_data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid request. Send either multipart form data with "image" file or JSON with "image_url"'}, status=400)
+            
+            # Validate input
+            if 'image_url' not in request_data:
+                return JsonResponse({'error': 'image_url is required in JSON request'}, status=400)
+            
+            image_url = request_data['image_url']
+            query_image_source = image_url
+            
+            # Download image from URL (run async function in sync context)
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                image_bytes, file_extension = loop.run_until_complete(download_image_from_url(image_url))
+            except (ValueError, Exception) as e:
+                return JsonResponse({'error': f'Failed to download image: {str(e)}'}, status=400)
+            finally:
+                loop.close()
         
-        # Validate image file
-        if not image_file.content_type.startswith('image/'):
-            return JsonResponse({'error': 'File must be an image'}, status=400)
-        
-        # Read image content
-        image_bytes = image_file.read()
+        if not image_bytes:
+            return JsonResponse({'error': 'No image data received'}, status=400)
         
         # Analyze query image using AI service
         loop = asyncio.new_event_loop()
@@ -245,7 +380,10 @@ def find_similar_products(request):
         
         if not all_products.exists():
             return JsonResponse({
+                'success': False,
+                'query_image_url': image_url,
                 'query_features': query_features.model_dump(),
+                'query_tags': query_tags,
                 'similar_products': [],
                 'message': 'No products found in database'
             })
@@ -280,6 +418,7 @@ def find_similar_products(request):
         
         return JsonResponse({
             'success': True,
+            'query_image_source': query_image_source,
             'query_features': query_features.model_dump(),
             'query_tags': query_tags,
             'total_products_checked': all_products.count(),
@@ -323,8 +462,8 @@ def health_check(request):
         'status': 'healthy',
         'service': 'AI Visual Product Search API',
         'endpoints': [
-            'POST /api/products/ - Add product with image analysis',
-            'POST /api/products/find-similar/ - Find similar products',
+            'POST /api/products/ - Add product with image URL analysis (JSON: {source_url, image_url})',
+            'POST /api/products/find-similar/ - Find similar products (JSON: {image_url})',
             'GET /api/health/ - Health check'
         ]
     })

@@ -15,7 +15,7 @@ class AIImageAnalysisService:
 
     def __init__(self):
         """Initialize the OpenRouter client with API key from environment variables."""
-        api_key = os.getenv('OPENROUTER_API_KEY', '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')
+        api_key = os.getenv('OPENROUTER_API_KEY')
         if not api_key or api_key == 'your_openrouter_api_key_here':
             self.api_key = None
             self.api_key_available = False
