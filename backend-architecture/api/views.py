@@ -20,6 +20,7 @@ from drf_yasg import openapi
 from .models import Product
 from .ai_service import ai_service
 from .schemas import ImageFeatures
+from .image_generation_service import image_generation_service
 
 
 async def download_image_from_url(image_url: str) -> tuple[bytes, str]:
@@ -87,38 +88,22 @@ async def download_image_from_url(image_url: str) -> tuple[bytes, str]:
 @swagger_auto_schema(
     method='post',
     operation_summary="Add a Product",
-    operation_description="Receive a product source URL and image file/URL, analyze the image using AI, and save to database.",
-    manual_parameters=[
-        openapi.Parameter(
-            'source_url',
-            openapi.IN_FORM,
-            description='Original URL of the product (for multipart/form-data)',
-            type=openapi.TYPE_STRING,
-            required=False
-        ),
-        openapi.Parameter(
-            'image',
-            openapi.IN_FORM,
-            description='Image file to analyze (multipart/form-data)',
-            type=openapi.TYPE_FILE,
-            required=False
-        )
-    ],
+    operation_description="Receive a product source URL and image URL, analyze the image using AI, and save to database.",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
             'source_url': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='Original URL of the product (for JSON request)',
+                description='Original URL of the product',
                 example='https://example.com/product'
             ),
             'image_url': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='URL of the product image to download and analyze (alternative to file upload)',
+                description='URL of the product image to download and analyze',
                 example='https://example.com/product-image.jpg'
             )
         },
-        required=[]
+        required=['source_url', 'image_url']
     ),
     responses={
         201: openapi.Response(
@@ -164,7 +149,6 @@ def add_product(request):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON in request body'}, status=400)
         
-        print("🚀 ~ request_data:", request_data)
         
         # Validate input
         if 'source_url' not in request_data:
@@ -432,6 +416,98 @@ def find_similar_products(request):
         }, status=500)
 
 
+# Swagger documentation temporarily removed due to multipart/form-data conflicts
+# Will be added back with proper parser configuration
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@csrf_exempt
+def generate_architectural_image(request):
+    """
+    API Endpoint: Generate Architectural Design Image
+    
+    Path: /api/generate-image/
+    Method: POST
+    Purpose: Upload an image and custom prompt to generate a new architectural interior design image using AI.
+    
+    Request: multipart/form-data containing:
+    - image: File (image file to use as base)
+    - prompt: str (custom design requirements)
+    - negative_prompt: str (optional, what to avoid)
+    - num_inference_steps: int (optional, 20-50, default 20)
+    
+    Returns: JSON response with generated image URL and prompt information
+    """
+    try:
+        # Validate required fields
+        if not request.FILES or 'image' not in request.FILES:
+            return JsonResponse({'error': 'Image file is required'}, status=400)
+        
+        if 'prompt' not in request.POST:
+            return JsonResponse({'error': 'Prompt is required'}, status=400)
+        
+        # Get uploaded image
+        uploaded_file = request.FILES['image']
+        
+        # Validate file type
+        if not uploaded_file.content_type.startswith('image/'):
+            return JsonResponse({'error': 'Uploaded file must be an image'}, status=400)
+        
+        # Check file size (limit to 10MB)
+        if uploaded_file.size > 10 * 1024 * 1024:
+            return JsonResponse({'error': 'Image file too large (max 10MB)'}, status=400)
+        
+        # Read image bytes
+        image_bytes = uploaded_file.read()
+        
+        # Get prompt and optional parameters
+        user_prompt = request.POST.get('prompt', '').strip()
+        negative_prompt = request.POST.get('negative_prompt', 'low quality, blurry, distorted, amateur, unprofessional, cluttered, poor lighting, unrealistic proportions')
+        num_inference_steps = int(request.POST.get('num_inference_steps', 20))
+        
+        # Validate prompt
+        if not user_prompt:
+            return JsonResponse({'error': 'Prompt cannot be empty'}, status=400)
+        
+        # Validate inference steps
+        if not (20 <= num_inference_steps <= 50):
+            return JsonResponse({'error': 'num_inference_steps must be between 20 and 50'}, status=400)
+        
+        # Generate architectural image using AI service
+        success, generated_image_urls, error_message = image_generation_service.generate_architectural_image(
+            image_bytes=image_bytes,
+            user_prompt=user_prompt,
+            negative_prompt=negative_prompt,
+            num_inference_steps=num_inference_steps
+        )
+        
+        if not success:
+            return JsonResponse({
+                'error': f'Image generation failed: {error_message}'
+            }, status=500)
+        
+        # Get the combined prompt for reference
+        combined_prompt = image_generation_service._combine_prompts(user_prompt)
+        
+        return JsonResponse({
+            'success': True,
+            'generated_image_urls': generated_image_urls,
+            'generated_image_url': generated_image_urls[0] if generated_image_urls else None,  # For backward compatibility
+            'total_images': len(generated_image_urls) if generated_image_urls else 0,
+            'original_prompt': user_prompt,
+            'combined_prompt': combined_prompt,
+            'negative_prompt': negative_prompt,
+            'num_inference_steps': num_inference_steps,
+            'message': f'Architectural design images generated successfully ({len(generated_image_urls) if generated_image_urls else 0} images)'
+        })
+        
+    except ValueError as e:
+        return JsonResponse({'error': f'Invalid input: {str(e)}'}, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Failed to generate architectural image: {str(e)}'
+        }, status=500)
+
+
 @swagger_auto_schema(
     method='get',
     operation_summary="Health Check",
@@ -464,6 +540,7 @@ def health_check(request):
         'endpoints': [
             'POST /api/products/ - Add product with image URL analysis (JSON: {source_url, image_url})',
             'POST /api/products/find-similar/ - Find similar products (JSON: {image_url})',
+            'POST /api/generate-image/ - Generate architectural design image (multipart: {image, prompt})',
             'GET /api/health/ - Health check'
         ]
     })

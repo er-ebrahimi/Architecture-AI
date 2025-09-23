@@ -10,6 +10,7 @@ urlpatterns = [
     # API Endpoints
     path('products/', views.add_product, name='add_product'),
     path('products/find-similar/', views.find_similar_products, name='find_similar_products'),
+    path('generate-image/', views.generate_architectural_image, name='generate_architectural_image'),
     path('health/', views.health_check, name='health_check'),
 ]
 
