@@ -23,6 +23,20 @@ from .schemas import ImageFeatures
 from .image_generation_service import image_generation_service
 
 
+def get_full_image_url(filename: str) -> str:
+    """
+    Helper function to construct full image URL with backend URL.
+    
+    Args:
+        filename (str): Image filename
+        
+    Returns:
+        str: Full URL to the image
+    """
+    backend_url = os.getenv('BACKEND_URL', 'http://localhost:8000')
+    return f"{backend_url}{settings.MEDIA_URL}{filename}"
+
+
 async def download_image_from_url(image_url: str) -> tuple[bytes, str]:
     """
     Download image from URL and return image bytes and file extension.
@@ -201,7 +215,7 @@ def add_product(request):
             'success': True,
             'product_id': product.id,
             'image_filename': unique_filename,
-            'image_url': f"{settings.MEDIA_URL}{unique_filename}",
+            'image_url': get_full_image_url(unique_filename),
             'original_image_url': image_url,
             'features': features_dict,
             'message': 'Product successfully analyzed and saved'
@@ -394,7 +408,7 @@ def find_similar_products(request):
                 'id': product.id,
                 'source_url': product.source_url,
                 'image_filename': product.image_filename,
-                'image_url': f"{settings.MEDIA_URL}{product.image_filename}",
+                'image_url': get_full_image_url(product.image_filename),
                 'similarity_score': item['score'],
                 'features': product.features,
                 'created_at': product.created_at.isoformat()
@@ -485,19 +499,54 @@ def generate_architectural_image(request):
                 'error': f'Image generation failed: {error_message}'
             }, status=500)
         
+        # Download and save generated images locally
+        local_image_urls = []
+        local_image_filenames = []
+        
+        for i, replicate_url in enumerate(generated_image_urls):
+            try:
+                # Download image from Replicate URL
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    downloaded_image_bytes, file_extension = loop.run_until_complete(download_image_from_url(replicate_url))
+                finally:
+                    loop.close()
+                
+                # Generate unique filename for the generated image
+                generated_filename = f"generated_{uuid.uuid4()}_{i+1}.{file_extension}"
+                
+                # Save image file to media directory
+                file_path = default_storage.save(
+                    generated_filename,
+                    ContentFile(downloaded_image_bytes)
+                )
+                
+                # Create local URL with full backend URL
+                local_url = get_full_image_url(generated_filename)
+                local_image_urls.append(local_url)
+                local_image_filenames.append(generated_filename)
+                
+            except Exception as e:
+                # If downloading fails, fall back to original Replicate URL
+                print(f"Warning: Failed to download image {i+1} from Replicate: {str(e)}")
+                local_image_urls.append(replicate_url)
+                local_image_filenames.append(f"replicate_url_{i+1}")
+        
         # Get the combined prompt for reference
         combined_prompt = image_generation_service._combine_prompts(user_prompt)
         
         return JsonResponse({
             'success': True,
-            'generated_image_urls': generated_image_urls,
-            'generated_image_url': generated_image_urls[0] if generated_image_urls else None,  # For backward compatibility
-            'total_images': len(generated_image_urls) if generated_image_urls else 0,
+            'generated_image_urls': local_image_urls,
+            'generated_image_url': local_image_urls[0] if local_image_urls else None,  # For backward compatibility
+            'generated_image_filenames': local_image_filenames,
+            'total_images': len(local_image_urls) if local_image_urls else 0,
             'original_prompt': user_prompt,
             'combined_prompt': combined_prompt,
             'negative_prompt': negative_prompt,
             'num_inference_steps': num_inference_steps,
-            'message': f'Architectural design images generated successfully ({len(generated_image_urls) if generated_image_urls else 0} images)'
+            'message': f'Architectural design images generated and saved successfully ({len(local_image_urls) if local_image_urls else 0} images)'
         })
         
     except ValueError as e:
