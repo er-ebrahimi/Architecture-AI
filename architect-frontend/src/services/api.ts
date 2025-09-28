@@ -30,6 +30,18 @@ export interface FindSimilarResponse {
   message: string;
 }
 
+export interface GenerateImageResponse {
+  success: boolean;
+  generated_image_urls: string[];
+  generated_image_url: string;
+  total_images: number;
+  original_prompt: string;
+  combined_prompt: string;
+  negative_prompt: string;
+  num_inference_steps: number;
+  message: string;
+}
+
 export interface ApiError {
   error: string;
 }
@@ -74,6 +86,68 @@ class ApiService {
     const response = await fetch(`${this.baseUrl}/api/products/`, {
       method: "POST",
       body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData: ApiError = await response.json();
+      throw new Error(
+        errorData.error || `HTTP error! status: ${response.status}`
+      );
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Generate architectural design image
+   */
+  async generateArchitecturalImage(
+    imageFile: File,
+    prompt: string,
+    negativePrompt?: string,
+    numInferenceSteps?: number
+  ): Promise<GenerateImageResponse> {
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    formData.append("prompt", prompt);
+
+    if (negativePrompt) {
+      formData.append("negative_prompt", negativePrompt);
+    }
+
+    if (numInferenceSteps) {
+      formData.append("num_inference_steps", numInferenceSteps.toString());
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/generate-image/`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData: ApiError = await response.json();
+      throw new Error(
+        errorData.error || `HTTP error! status: ${response.status}`
+      );
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Find similar products by image URL
+   */
+  async findSimilarProductsByUrl(
+    imageUrl: string
+  ): Promise<FindSimilarResponse> {
+    const response = await fetch(`${this.baseUrl}/api/products/find-similar/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        image_url: imageUrl,
+      }),
     });
 
     if (!response.ok) {

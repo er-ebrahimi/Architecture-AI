@@ -4,6 +4,7 @@ import { DataTable } from "@/components/data-table";
 import { SectionCards } from "@/components/section-cards";
 import { SiteHeader } from "@/components/site-header";
 import { VisualSearch } from "@/components/visual-search";
+import { ArchitecturalDesign } from "@/components/architectural-design";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -26,9 +27,12 @@ export default function Page() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <Tabs defaultValue="dashboard" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                   <TabsTrigger value="visual-search">Visual Search</TabsTrigger>
+                  <TabsTrigger value="architectural-design">
+                    AI Design
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="dashboard" className="space-y-4 mt-6">
@@ -42,6 +46,12 @@ export default function Page() {
                 <TabsContent value="visual-search" className="mt-6">
                   <div className="px-4 lg:px-6">
                     <VisualSearch />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="architectural-design" className="mt-6">
+                  <div className="px-4 lg:px-6">
+                    <ArchitecturalDesign />
                   </div>
                 </TabsContent>
               </Tabs>
