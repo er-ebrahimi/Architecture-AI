@@ -13,7 +13,15 @@ export function ProductCard({
   product,
   baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
 }: ProductCardProps) {
-  const getImageUrl = (imagePath: string) => {
+  const getImageUrl = (imagePath: string | undefined) => {
+    if (!imagePath) {
+      return `data:image/svg+xml;base64,${btoa(`
+        <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+          <rect width="400" height="400" fill="#f3f4f6"/>
+          <text x="200" y="200" text-anchor="middle" fill="#9ca3af" font-size="16">No image</text>
+        </svg>
+      `)}`;
+    }
     if (imagePath.startsWith("http")) {
       return imagePath;
     }

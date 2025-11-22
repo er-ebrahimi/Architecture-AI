@@ -1,11 +1,14 @@
 {
-	"folders": [
-		{
-			"path": ".."
-		},
-		{
-			"path": "../../archi-ai/architecture-ai"
-		}
-	],
-	"settings": {}
+  "folders": [
+    {
+      "path": "../../BackendArchitecture"
+    }
+  ],
+  "settings": {
+    "cSpell.words": [
+      "ipython",
+      "isort",
+      "mypy"
+    ]
+  }
 }
