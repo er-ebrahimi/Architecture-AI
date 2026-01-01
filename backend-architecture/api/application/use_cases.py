@@ -219,9 +219,8 @@ class GenerateArchitecturalImageUseCase:
                     local_image_filenames.append(generated_filename)
                     
                 except Exception as e:
-                    # Fall back to original URL if download fails
-                    local_image_urls.append(replicate_url)
-                    local_image_filenames.append(f"replicate_url_{i+1}")
+                    # Skip entries that fail to download; only return local URLs
+                    continue
             
             return {
                 'success': True,

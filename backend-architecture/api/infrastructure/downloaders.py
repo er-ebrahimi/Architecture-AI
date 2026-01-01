@@ -26,14 +26,15 @@ class HttpImageDownloader(ImageDownloadInterface):
             Exception: If download fails
         """
         try:
-            # Validate URL
-            parsed_url = urlparse(image_url)
+            # Normalize and validate URL
+            cleaned_url = image_url.strip().strip('`').strip('"').strip("'")
+            parsed_url = urlparse(cleaned_url)
             if not parsed_url.scheme or not parsed_url.netloc:
                 raise ValueError("Invalid URL format")
             
             # Download image with timeout and size limits
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(image_url)
+                response = await client.get(cleaned_url)
                 response.raise_for_status()
                 
                 # Check content type
